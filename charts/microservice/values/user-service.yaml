@@ -1,0 +1,38 @@
+# User Service values
+replicaCount: 1
+image:
+  repository: leelanaveen123/user
+  tag: latest
+  pullPolicy: Always
+
+service:
+  port: 80
+  targetPort: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: JWT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: user-service-secrets
+        key: jwt-secret
+        optional: true
+
+probes:
+  liveness:
+    enabled: true
+    path: /health
+    port: 3000
+  readiness:
+    enabled: true
+    path: /ready
+    port: 3000

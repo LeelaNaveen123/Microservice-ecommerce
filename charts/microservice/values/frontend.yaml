@@ -1,0 +1,31 @@
+# Frontend values
+replicaCount: 1
+
+image:
+  repository: leelanaveen123/frontend
+  tag: latest
+  pullPolicy: Always
+
+service:
+  port: 80
+  targetPort: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+probes:
+  liveness:
+    enabled: true
+    path: /health
+    port: 80
+  readiness:
+    enabled: true
+    path: /
+    port: 80
+
+podAnnotations: {}
