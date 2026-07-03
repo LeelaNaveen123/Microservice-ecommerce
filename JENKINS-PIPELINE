@@ -1,0 +1,109 @@
+pipeline {
+    agent any
+    tools {
+        nodejs 'NodeJS-22'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/LeelaNaveen123/Microservice-ecommerce.git'
+            }
+        }
+        stage('Build API Gateway') {
+    steps {
+        dir('services/api-gateway') {
+            sh '''
+                npm install
+                npm test || true
+            '''
+        }
+    }
+}
+        stage('Debug Node') {
+    steps {
+        sh '''
+        echo "PATH=$PATH"
+        which node
+        which npm
+        node -v
+        npm -v
+        ldd $(which node) || true
+        '''
+    }
+}
+        stage('Build Docker Images') {
+    steps {
+        sh '''
+        docker build -t leelanaveen123/api-gateway:latest ./services/api-gateway
+        docker build -t leelanaveen123/cart-service:latest ./services/cart
+        docker build -t leelanaveen123/product-service:latest ./services/product
+        docker build -t leelanaveen123/user-service:latest ./services/user-service
+        docker build -t leelanaveen123/order-service:latest ./services/order
+        docker build -t leelanaveen123/frontend:latest ./services/frontend
+        '''
+    }
+}
+        stage('Push Docker Images') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'dockerhub-creds',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+        )]) {
+            sh '''
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+            docker push leelanaveen123/api-gateway:latest
+            docker push leelanaveen123/cart-service:latest
+            docker push leelanaveen123/product-service:latest
+            docker push leelanaveen123/user-service:latest
+            docker push leelanaveen123/order-service:latest
+            docker push leelanaveen123/frontend:latest
+
+            docker logout
+            '''
+        }
+    }
+}
+        stage('Deployment Check') {
+    steps {
+        sh '''
+        echo "Checking if API Gateway is already running..."
+        kubectl get pods -n default
+        kubectl rollout status deployment/api-gateway-microservice -n default
+        '''
+    }
+}
+        stage('Application Health Check') {
+    steps {
+        sh '''
+        echo "Checking application health..."
+
+        curl --retry 5 \
+             --retry-delay 10 \
+             --fail \
+             -v \
+             http://ad251331b84b84361ac0d2d5e72abeb8-1387099725.us-east-1.elb.amazonaws.com
+        '''
+    }
+}
+        stage('Readiness Check') {
+    steps {
+        sh '''
+        curl --fail http://ad251331b84b84361ac0d2d5e72abeb8-1387099725.us-east-1.elb.amazonaws.com/ready
+        '''
+    }
+}
+        stage('Metrics Check') {
+    steps {
+        sh '''
+        curl --fail http://ad251331b84b84361ac0d2d5e72abeb8-1387099725.us-east-1.elb.amazonaws.com/metrics | head
+        '''
+    }
+}
+      
+
+    }
+}
